@@ -1,0 +1,8 @@
+.invalid {
+    border: red groove 2px;
+}
+
+.errorMessage {
+    color:red;
+    margin: 0;
+}
