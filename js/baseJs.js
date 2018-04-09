@@ -1,13 +1,10 @@
 
 // Additions:
-// 		Branching rule logic based on other input values
 //		Make into an NPM library (will this even work on FE?)
 //		Consider seperating Rule logic into a seperate file(s)
 //      Should rules be stored in a data attribute on each element to validate?
 //			-	BOTH: allow the developers to choose (Enusre choice is consistent in project)
-//		Build seperate method for error message reporting
 // 		Build logic to allow same rules for two different inputs without adding new data tag to rules array
-//      Build organizer method to allow users specify which order the rules should be ran
 
 
 // Active Jquery looking for elements with data-attribute when blured
@@ -35,7 +32,7 @@ function validateInputs(inputTarget) {
                 'strings',
                 'bools',
             ],
-            // rule: 'reEvaluate' to target what element for reEvaluation and update
+            optional: false,
         },
         strings: {
             maxLength: 99,
@@ -43,7 +40,7 @@ function validateInputs(inputTarget) {
             type: 'string',
             dependants: {
                 numbers: '1',
-            }
+            },
         },
         bools: {
             maxLength: 5,
@@ -74,21 +71,28 @@ function processRules(inputTarget, rules) {
     const ruleProcessors = getRuleProcessor();
     const inputValue = inputTarget.value;
     const inputName = $(inputTarget).attr("data-js-validate");
-    let engineRules = ['dependants', 'reEvaluate'];
-    let errorsFound = false;
+    let engineRules = ['dependants', 'reEvaluate', 'optional'];
+    let errors = {};
 
     // Ensure rule exists
     if (!(inputName in rules)) {
         console.error('Specified rule does not exist.');
     }
 
-    const elementRules = rules[inputName];
-
-    let preEvaluationResults = evaluateDependants(elementRules);
-
+    let elementRules = Object.assign({}, rules[inputName]);
+    elementRules = ruleProcessors['dependants'](elementRules);
+    elementRules = ruleProcessors['optional'](elementRules, inputValue);
 
     // If any logic modules specify 'skip' no further validation is done
-    if (preEvaluationResults.skip) {
+    if (elementRules.skip) {
+        clearErrors(inputTarget);
+        return;
+    }
+
+    // TODO: refactor so user can edit error message
+    if (!inputValue) {
+        errors = Object.assign(errors, {empty: 'Please fill out this field.'});
+        proccessErrors(errors, inputTarget);
         return;
     }
 
@@ -96,13 +100,15 @@ function processRules(inputTarget, rules) {
 
     // Loop through each rule specified for the element
     // If one fails the 'True' will be returned
+    let errorCounter = 0;
+
     for (const rule in filteredRules) {
         try {
             const constraint = filteredRules[rule];
-            const results = ruleProcessors[rule](inputValue, constraint);
+            let singleError = ruleProcessors[rule](inputValue, constraint);
 
-            if (results === true) {
-                errorsFound = results;
+            if (singleError) {
+                errors = Object.assign(errors, singleError);
             }
         } catch (error) {
             console.error(
@@ -114,19 +120,11 @@ function processRules(inputTarget, rules) {
     }
 
     // Post Evaluation with NO errors Logic Modules
-    if (!errorsFound) {
-        console.log('here');
-        reEvaluateElements(rules, elementRules);
+    if (!errors) {
+        ruleProcessors['reEvaluate'](rules, elementRules);
     }
 
-    // If errors are found add error class else remove class if it exists
-    // TODO: breakout
-    if (errorsFound) {
-        // TODO: pass error message to update page
-        $(inputTarget).addClass("invalid");
-    } else if ($(inputTarget).hasClass("invalid")) {
-        $(inputTarget).removeClass("invalid");
-    }
+    proccessErrors(errors, inputTarget);
 }
 
 function removeEngineRules(elementRules, engineRules) {
@@ -140,16 +138,45 @@ function removeEngineRules(elementRules, engineRules) {
     return filteredRules;
 }
 
-function reEvaluateElements(rules, elementRules) {
-    console.log(elementRules);
-    if ('reEvaluate' in elementRules) {
-       console.log('im here');
+//TODO: allow single or many error messages
+function proccessErrors(errors, target) {
+    const invalidClass = 'invalid';
+    const errorMessageTarget = $('[data-errors-universal]');
+
+    if (!$.isEmptyObject(errors)) {
+        // TODO: loop through errors and apply all messages else only first error
+        errorMessageTarget[0].innerHTML = errors[Object.keys(errors)[0]];
+        $(target).addClass(invalidClass);
+    } else if ($(target).hasClass(invalidClass)) {
+        errorMessageTarget[0].innerHTML = '';
+        $(target).removeClass(invalidClass);
     }
 }
 
-function evaluateDependants(rules) {
-    if ('dependants' in rules) {
-        let definedDependants = rules.dependants;
+function clearErrors(target) {
+    if ($(target).hasClass(invalidClass)) {
+        $(target).removeClass("invalid");
+    }
+}
+
+// ------------------------------------------------------
+// ------------------ Rule Functions --------------------
+// ------------------------------------------------------
+function reEvaluateElements(rules, elementRules) {
+    if ('reEvaluate' in elementRules) {
+        let elementsToEvaluate = elementRules.reEvaluate;
+
+        for ( let element in elementsToEvaluate ) {
+            let targetElement = $('[data-js-validate="' + elementsToEvaluate[element] + '"]');
+
+            processRules(targetElement, rules);
+        }
+    }
+}
+
+function evaluateDependants(elementRules) {
+    if ('dependants' in elementRules) {
+        let definedDependants = elementRules.dependants;
 
         for ( let property in definedDependants ) {
             let dependantValue = $('[data-js-validate="' + property + '"]').val();
@@ -162,8 +189,24 @@ function evaluateDependants(rules) {
         }
     }
 
-    return rules;
+    return elementRules;
 }
+
+// TODO: should optional = true even exist? should the user simply not add valiation to the rules object?
+function evaluateOptional(elementRules, inputValue) {
+    if ('optional' in elementRules && elementRules['optional'] === true) {
+        if (elementRules['optional'] === true) {
+            return {skip: true};
+        }
+
+        if (elementRules['optional'] === false && !inputValue) {
+            return {skip: true};
+        }
+    }
+
+    return elementRules;
+}
+
 
 
 // ------------------------------------------------------
@@ -175,48 +218,65 @@ function evaluateDependants(rules) {
 function getRuleProcessor() {
     return {
         maxLength: (value, constraint) => {
-            if (value.length > constraint) {
-                return true;
+            if (!value || value.length > constraint) {
+                const errorMessage = 'Input exceeded ' + constraint + ' characters.';
+                return {maxLength: errorMessage};
             }
         },
         minLength: (value, constraint) => {
-            if (value.length < constraint) {
-                return true;
+            if (!value || value.length < constraint) {
+                const errorMessage = 'Input must be at least ' + constraint + ' characters long.';
+                return {minLength: errorMessage};
             }
         },
         maxValue: (value, constraint) => {
             if (isNaN(value) || value > constraint) {
-                return true;
+                const errorMessage = 'Input must be less than ' + constraint;
+                return {maxValue: errorMessage};
             }
         },
         minValue: (value, constraint) => {
             if (isNaN(value) || value < constraint) {
-                return true;
+                const errorMessage = 'Input must be greater than ' + constraint;
+                return {minValue: errorMessage};
             }
         },
         type: (value, constraint) => {
             let actualType = null;
+
             switch(constraint) {
                 case 'string':
                     actualType = typeof value;
                     if (actualType !== constraint) {
-                        return true;
+                        const errorMessage = 'Input must be a ' + constraint;
+                        return {type: errorMessage};
                     }
                     break;
                 case 'number':
                     actualType = typeof parseFloat(value);
                     if (isNaN(value) || actualType !== constraint) {
-                        return true;
+                        const errorMessage = 'Input must be a ' + constraint;
+                        return {type: errorMessage};
                     }
                     break;
                 case 'bool':
                     value = value.toLowerCase();
                     value = (value === "true" || value === "false");
                     if (!value) {
-                        return true;
+                        const errorMessage = 'Input must be a ' + constraint;
+                        return {type: errorMessage};
                     }
                     break;
             }
         },
+        reEvaluate: (rules, elementRules) => {
+            reEvaluateElements(rules, elementRules);
+        },
+        dependants: (elementRules) => {
+            return evaluateDependants(elementRules);
+        },
+        optional: (elementRules, inputValue) => {
+            return evaluateOptional(elementRules, inputValue);
+        }
     }
 }
