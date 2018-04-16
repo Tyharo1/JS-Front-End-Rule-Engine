@@ -154,8 +154,9 @@ function proccessErrors(errors, target) {
 }
 
 function clearErrors(target) {
+    const invalidClass = 'invalid';
     if ($(target).hasClass(invalidClass)) {
-        $(target).removeClass("invalid");
+        $(target).removeClass(invalidClass);
     }
 }
 
@@ -192,16 +193,12 @@ function evaluateDependants(elementRules) {
     return elementRules;
 }
 
-// TODO: should optional = true even exist? should the user simply not add valiation to the rules object?
 function evaluateOptional(elementRules, inputValue) {
-    if ('optional' in elementRules && elementRules['optional'] === true) {
-        if (elementRules['optional'] === true) {
-            return {skip: true};
-        }
-
-        if (elementRules['optional'] === false && !inputValue) {
-            return {skip: true};
-        }
+    if ('optional' in elementRules &&
+        elementRules['optional'] === true &&
+        !inputValue
+    ) {
+        return {skip: true};
     }
 
     return elementRules;
