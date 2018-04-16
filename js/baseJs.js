@@ -29,10 +29,8 @@ function validateInputs(inputTarget) {
             minLength: 1,
             type: 'number',
             reEvaluate: [
-                'strings',
-                'bools',
+                'strings'
             ],
-            optional: false,
         },
         strings: {
             maxLength: 99,
@@ -67,7 +65,7 @@ function validateInputs(inputTarget) {
 // ------------------------------------------------------
 
 // Rule Validation Utility
-function processRules(inputTarget, rules) {
+function processRules(inputTarget, rules, recursiveDepth = 2) {
     const ruleProcessors = getRuleProcessor();
     const inputValue = inputTarget.value;
     const inputName = $(inputTarget).attr("data-js-validate");
@@ -120,8 +118,8 @@ function processRules(inputTarget, rules) {
     }
 
     // Post Evaluation with NO errors Logic Modules
-    if (!errors) {
-        ruleProcessors['reEvaluate'](rules, elementRules);
+    if ($.isEmptyObject(errors)) {
+        ruleProcessors['reEvaluate'](rules, elementRules, recursiveDepth);
     }
 
     proccessErrors(errors, inputTarget);
@@ -163,14 +161,15 @@ function clearErrors(target) {
 // ------------------------------------------------------
 // ------------------ Rule Functions --------------------
 // ------------------------------------------------------
-function reEvaluateElements(rules, elementRules) {
-    if ('reEvaluate' in elementRules) {
+function reEvaluateElements(rules, elementRules, recursiveDepth) {
+    if ('reEvaluate' in elementRules && recursiveDepth > 0) {
         let elementsToEvaluate = elementRules.reEvaluate;
+        recursiveDepth = recursiveDepth - 1;
 
         for ( let element in elementsToEvaluate ) {
-            let targetElement = $('[data-js-validate="' + elementsToEvaluate[element] + '"]');
-
-            processRules(targetElement, rules);
+            let targetElement = $('[data-js-validate="' + elementsToEvaluate[element] + '"]')[0];
+        console.log(targetElement);
+            processRules(targetElement, rules, recursiveDepth);
         }
     }
 }
@@ -266,8 +265,8 @@ function getRuleProcessor() {
                     break;
             }
         },
-        reEvaluate: (rules, elementRules) => {
-            reEvaluateElements(rules, elementRules);
+        reEvaluate: (rules, elementRules, recursiveDepth) => {
+            reEvaluateElements(rules, elementRules, recursiveDepth);
         },
         dependants: (elementRules) => {
             return evaluateDependants(elementRules);
