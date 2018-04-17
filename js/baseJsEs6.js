@@ -8,12 +8,12 @@ import { getRuleProcessor } from './engineRules.js';
 
 
 // Active Jquery looking for elements with data-attribute when blured
-$('[data-js-validate]').blur(event => {
+$('[data-js-validate]').blur((event) => {
     validateInputs(event.target);
 });
 
-$('[data-js-button-validate]').click(event => {
-    $('[data-js-validate]').each(function (index) {
+$('[data-js-button-validate]').click((event) => {
+    $('[data-js-validate]').each(function( index ) {
         validateInputs(this);
     });
 });
@@ -28,25 +28,27 @@ function validateInputs(inputTarget) {
             maxLength: 10,
             minLength: 1,
             type: 'number',
-            reEvaluate: ['strings']
+            reEvaluate: [
+                'strings'
+            ],
         },
         strings: {
             maxLength: 99,
             minLength: 1,
             type: 'string',
             dependants: {
-                numbers: '1'
-            }
+                numbers: '1',
+            },
         },
         bools: {
             maxLength: 5,
             minLength: 4,
-            type: 'bool'
+            type: 'bool',
         },
         radio: {
             type: 'bool',
             dependants: {
-                numbers: '123'
+                numbers: '123',
             }
         }
     };
@@ -55,6 +57,8 @@ function validateInputs(inputTarget) {
     // Rules are ran based on targets name
     processRules(inputTarget, rules);
 }
+
+
 
 // ------------------------------------------------------
 // ---------------------- Engine ------------------------
@@ -87,7 +91,7 @@ function processRules(inputTarget, rules, recursiveDepth = 2) {
 
     // TODO: refactor so user can edit error message
     if (!inputValue) {
-        errors = Object.assign(errors, { empty: 'Please fill out this field.' });
+        errors = Object.assign(errors, {empty: 'Please fill out this field.'});
         proccessErrors(errors, inputTarget);
         return;
     }
@@ -107,7 +111,11 @@ function processRules(inputTarget, rules, recursiveDepth = 2) {
                 errors = Object.assign(errors, singleError);
             }
         } catch (error) {
-            console.error("The '" + rule + "' rule specified on the '" + inputName + "' element does not exist in the rules library." + '\n', error);
+            console.error(
+                "The '" + rule + "' rule specified on the '" + inputName +
+                "' element does not exist in the rules library." + '\n',
+                error
+            );
         }
     }
 
@@ -123,7 +131,7 @@ function removeEngineRules(elementRules, engineRules) {
     let filteredRules = Object.assign({}, elementRules);
     for (const engineRule in engineRules) {
         if (engineRules[engineRule] in filteredRules) {
-            delete filteredRules[engineRules[engineRule]];
+           delete filteredRules[engineRules[engineRule]];
         }
     }
 
@@ -160,7 +168,7 @@ export function reEvaluateElements(rules, elementRules, recursiveDepth) {
         let elementsToEvaluate = elementRules.reEvaluate;
         recursiveDepth = recursiveDepth - 1;
 
-        for (let element in elementsToEvaluate) {
+        for ( let element in elementsToEvaluate ) {
             let targetElement = $('[data-js-validate="' + elementsToEvaluate[element] + '"]')[0];
             processRules(targetElement, rules, recursiveDepth);
         }
@@ -171,11 +179,13 @@ export function evaluateDependants(elementRules) {
     if ('dependants' in elementRules) {
         let definedDependants = elementRules.dependants;
 
-        for (let property in definedDependants) {
+        for ( let property in definedDependants ) {
             let dependantValue = $('[data-js-validate="' + property + '"]').val();
 
-            if (definedDependants.hasOwnProperty(property) && definedDependants[property] !== dependantValue) {
-                return { skip: true };
+            if (definedDependants.hasOwnProperty(property)
+                && definedDependants[property] !== dependantValue
+            ) {
+                return {skip: true};
             }
         }
     }
@@ -184,12 +194,16 @@ export function evaluateDependants(elementRules) {
 }
 
 export function evaluateOptional(elementRules, inputValue) {
-    if ('optional' in elementRules && elementRules['optional'] === true && !inputValue) {
-        return { skip: true };
+    if ('optional' in elementRules &&
+        elementRules['optional'] === true &&
+        !inputValue
+    ) {
+        return {skip: true};
     }
 
     return elementRules;
 }
+
 
 // // ------------------------------------------------------
 // // ---------------------- Rules -------------------------
