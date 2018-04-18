@@ -21,7 +21,58 @@
 </button>
 
 <script src="./js/jquery-3.3.1.js"></script>
-<script type="module" src="./js/baseJs.js"></script>
+<script type="module" src="./js/rulesEngine.js"></script>
+<script type="text/javascript">
+  // Active Jquery looking for elements with data-attribute when blured
+  $('[data-js-validate]').blur((event) => {
+      validateInputs(event.target);
+  });
+
+  $('[data-js-button-validate]').click((event) => {
+      $('[data-js-validate]').each(function( index ) {
+          validateInputs(this);
+      });
+  });
+
+  // Each page will have its own validation file
+  // containing rules for each input on the page.
+  function validateInputs(inputTarget) {
+      // Build rules per input, inputs name MUST match the rules name
+      const rules = {
+          numbers: {
+              maxLength: 10,
+              minLength: 1,
+              type: 'number',
+              reEvaluate: [
+                  'strings'
+              ],
+          },
+          strings: {
+              maxLength: 99,
+              minLength: 1,
+              type: 'string',
+              dependants: {
+                  numbers: '1',
+              },
+          },
+          bools: {
+              maxLength: 5,
+              minLength: 4,
+              type: 'bool',
+          },
+          radio: {
+              type: 'bool',
+              dependants: {
+                  numbers: '123',
+              }
+          }
+      };
+
+      // Call utility with target object and page specified rules
+      // Rules are ran based on targets name
+      processRules(inputTarget, rules);
+  }
+</script>
 
 </body>
 </html>

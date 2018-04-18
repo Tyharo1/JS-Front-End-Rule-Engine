@@ -1,6 +1,6 @@
-import { reEvaluateElements, evaluateDependants, evaluateOptional } from './baseJs.js';
+import { reEvaluateElements, evaluateDependants, evaluateOptional } from './rulesEngine.js';
 // ------------------------------------------------------
-// ---------------------- Rules -------------------------
+// ------------------ Engine Rules ----------------------
 // ------------------------------------------------------
 // Method containing all valid rules
 // If you want a new rule add it to the object with the appropriate logic
