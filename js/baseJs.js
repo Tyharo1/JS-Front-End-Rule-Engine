@@ -5,7 +5,7 @@
 //      Should rules be stored in a data attribute on each element to validate?
 //			-	BOTH: allow the developers to choose (Enusre choice is consistent in project)
 // 		Build logic to allow same rules for two different inputs without adding new data tag to rules array
-
+//    Break error messaging out into own method for easy customization
 
 // Active Jquery looking for elements with data-attribute when blured
 $('[data-js-validate]').blur((event) => {
@@ -36,14 +36,21 @@ function validateInputs(inputTarget) {
             maxLength: 99,
             minLength: 1,
             type: 'string',
-            dependants: {
-                numbers: '1',
-            },
+            elementReliance: [
+              ['numbers', '<', '10'],
+              ['bools', '==', 'false']
+            ],
+            // dependants: {
+            //     numbers: '1',
+            // },
         },
         bools: {
             maxLength: 5,
             minLength: 4,
             type: 'bool',
+            reEvaluate: [
+                'strings'
+            ],
         },
         radio: {
             type: 'bool',
@@ -57,8 +64,6 @@ function validateInputs(inputTarget) {
     // Rules are ran based on targets name
     processRules(inputTarget, rules);
 }
-
-
 
 // ------------------------------------------------------
 // ---------------------- Engine ------------------------
@@ -168,7 +173,6 @@ function reEvaluateElements(rules, elementRules, recursiveDepth) {
 
         for ( let element in elementsToEvaluate ) {
             let targetElement = $('[data-js-validate="' + elementsToEvaluate[element] + '"]')[0];
-        console.log(targetElement);
             processRules(targetElement, rules, recursiveDepth);
         }
     }
@@ -202,8 +206,6 @@ function evaluateOptional(elementRules, inputValue) {
 
     return elementRules;
 }
-
-
 
 // ------------------------------------------------------
 // ---------------------- Rules -------------------------
@@ -264,6 +266,27 @@ function getRuleProcessor() {
                     }
                     break;
             }
+        },
+        elementReliance: (value, reliedElement) => {
+          var operators = {
+            '==': (a, b) => { return a == b },
+            '=': (a, b) => { return a = b },
+            '+': (a, b) => { return a + b },
+            '-': (a, b) => { return a - b },
+            '<': (a, b) => { return a < b },
+            '>': (a, b) => { return a > b },
+          };
+
+          for (const reliance in reliedElement) {
+            let operator = reliedElement[reliance][1];
+            let element = $('[data-js-validate="' + reliedElement[reliance][0] + '"]').val();
+            let mustBe = reliedElement[reliance][2];
+
+            if (!operators[operator](element, mustBe)) {
+              let errorMessage = element + ' was not ' + operator + ' ' + mustBe;
+              return {elementReliance: errorMessage};
+            }
+          }
         },
         reEvaluate: (rules, elementRules, recursiveDepth) => {
             reEvaluateElements(rules, elementRules, recursiveDepth);
